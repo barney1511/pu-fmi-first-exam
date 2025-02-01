@@ -1,0 +1,2 @@
+ALTER TABLE messages
+    ALTER COLUMN channel_id DROP NOT NULL;
