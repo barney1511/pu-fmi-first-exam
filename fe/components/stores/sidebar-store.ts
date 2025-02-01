@@ -23,6 +23,7 @@ export interface SidebarState {
   members: any[]
   friends: any[]
   removeButtonType: RemoveButtonType
+  dialogOpen: boolean
 }
 
 export interface SidebarActions {
@@ -36,6 +37,7 @@ export interface SidebarActions {
   setMembers: (members: any[]) => void
   setFriends: (friends: any[]) => void
   setRemoveButtonType: (removeButtonType: RemoveButtonType) => void
+  setDialogOpen: (dialogOpen: boolean) => void
 }
 
 export type SidebarStore = SidebarActions & SidebarState
@@ -51,6 +53,7 @@ export const defaultSidebarState: SidebarState = {
   members: [],
   friends: [],
   removeButtonType: RemoveButtonType.removeChannelMember,
+  dialogOpen: false,
 }
 
 export const createSidebarStore = (initialState: SidebarState = defaultSidebarState) => {
@@ -66,5 +69,6 @@ export const createSidebarStore = (initialState: SidebarState = defaultSidebarSt
     setMembers: (members) => set({ members: members }),
     setFriends: (friends) => set({ friends: friends }),
     setRemoveButtonType: (removeButtonType) => set({ removeButtonType: removeButtonType }),
+    setDialogOpen: (dialogOpen) => set({ dialogOpen: dialogOpen }),
   }))
 }

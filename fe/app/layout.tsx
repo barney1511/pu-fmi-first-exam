@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { GlobalSearch } from "@/components/sidebar-client"
+import { DialogCreate, GlobalSearch } from "@/components/sidebar-client"
 import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
@@ -37,9 +37,10 @@ export default async function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <GlobalSearch />
+        <DialogCreate />
         <Toaster />
         <SidebarProvider>
-          <AppSidebar user={user} />
+          <AppSidebar user={user}/>
           <SidebarInset>{children}</SidebarInset>
         </SidebarProvider>
       </body>

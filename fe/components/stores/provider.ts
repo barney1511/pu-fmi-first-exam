@@ -30,5 +30,6 @@ export const useSidebarStore = create<SidebarStore>(
     setMembers: (members: any[]) => set({ members: members }),
     setFriends: (friends: any[]) => set({ friends: friends }),
     setRemoveButtonType: (removeButtonType: RemoveButtonType) => set({ removeButtonType: removeButtonType }),
+    setDialogOpen: (dialogOpen: boolean) => set({ dialogOpen: dialogOpen }),
   }))
 )

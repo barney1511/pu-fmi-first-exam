@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Client } from "@stomp/stompjs"
 import { useSidebarStore } from "@/components/stores/provider"
 import { useShallow } from "zustand/react/shallow"
-import { getMessages } from "@/app/actions"
+import { getChannels, getMessages, updateChannelName } from "@/app/actions"
+import { Button } from "@/components/ui/button"
 
 interface UserDTO {
   userId: string
@@ -31,13 +32,17 @@ export default function ChatComponent({ channelId, recipientId, chatType }: Read
   const [inputMessage, setInputMessage] = useState("")
   const [connected, setConnected] = useState(false)
   const [stompClient, setStompClient] = useState<Client | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [newChannelName, setNewChannelName] = useState("")
   const { userId: CURRENT_USER_ID, user: CURRENT_USER } = useSidebarStore(
     useShallow((state) => ({
       userId: state.userId,
       user: state.user,
     }))
   )
-  const channels = useSidebarStore(useShallow((state) => state.channels))
+  const { channels, setChannels } = useSidebarStore(
+    useShallow((state) => ({ channels: state.channels, setChannels: state.setChannels }))
+  )
   const channel = channels.find((c) => c.channelId === channelId)
 
   const friends = useSidebarStore(useShallow((state) => state.friends))
@@ -151,10 +156,53 @@ export default function ChatComponent({ channelId, recipientId, chatType }: Read
     }
   }
 
+  const handleEditClick = () => {
+    setIsEditing(true)
+    setNewChannelName(channel?.name || "")
+  }
+
+  const handleAcceptClick = async () => {
+    if (channelId && newChannelName.trim()) {
+      try {
+        await updateChannelName(channelId, newChannelName)
+        const updatedChannels = await getChannels(CURRENT_USER.name)
+        setChannels(updatedChannels)
+        channel.name = newChannelName
+        setIsEditing(false)
+      } catch (error) {
+        console.error("Error updating channel name:", error)
+      }
+    }
+  }
+
   return (
     <div className="flex h-full flex-col text-black">
       <div className="flex justify-between border-b p-2">
-        <div className="font-bold">{getChatTitle()}</div>
+        <div className="font-bold">
+          {isEditing ? (
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                placeholder={channel?.name}
+                className="mr-2 rounded border p-1"
+              />
+              <Button onClick={() => void handleAcceptClick()} className="rounded bg-blue-500 text-white">
+                Accept
+              </Button>
+            </div>
+          ) : (
+            <>
+              {getChatTitle()}
+              {chatType === "CHANNEL" && (
+                <Button onClick={() => handleEditClick()} className="ml-2 rounded bg-gray-300 font-bold text-black">
+                  Edit
+                </Button>
+              )}
+            </>
+          )}
+        </div>
         <div className={`px-2 text-sm ${connected ? "text-green-600" : "text-red-600"}`}>
           {connected ? "Connected" : "Disconnected"}
         </div>
@@ -186,13 +234,13 @@ export default function ChatComponent({ channelId, recipientId, chatType }: Read
             className="flex-1 rounded border p-2"
             disabled={!connected}
           />
-          <button
+          <Button
             type="submit"
             disabled={!connected}
-            className="rounded bg-blue-500 px-4 py-2 text-white disabled:bg-gray-300"
+            className="self-center rounded bg-blue-500 text-white disabled:bg-gray-300"
           >
             Send
-          </button>
+          </Button>
         </div>
       </form>
     </div>

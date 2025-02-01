@@ -1,5 +1,7 @@
 "use server"
 
+import {Role} from "@/components/sidebar-client";
+
 export async function getChannels(username: string) {
   try {
     const response = await fetch(
@@ -74,6 +76,75 @@ export async function getChannelMembers(channelId: string) {
     return data.members
   } catch (error) {
     console.error("Error fetching channel members:", error)
+    throw error
+  }
+}
+
+export async function createChannel(name: string, userId: string) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/channels`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "*/*",
+      },
+      body: JSON.stringify({ name: name, ownerId: userId }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error creating channel:", error)
+    throw error
+  }
+}
+
+export async function updateChannelName(channelId: string, name: string) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/channels`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "*/*",
+      },
+      body: JSON.stringify({ id: channelId, name: name }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error updating channel name:", error)
+    throw error
+  }
+}
+
+export async function changeRole(channelId: string, username: string, role: Role) {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/channels/${channelId}/members/${username}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          accept: "*/*",
+        },
+        body: JSON.stringify({ role: role }),
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error changing role:", error)
     throw error
   }
 }
@@ -192,6 +263,23 @@ export async function getMessages(
     }
   } catch (error) {
     console.error("Error fetching messages:", error)
+    throw error
+  }
+}
+
+export async function removeChannel(channelId: string) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/channels/${channelId}`, {
+      method: "DELETE",
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error removing channel:", error)
     throw error
   }
 }

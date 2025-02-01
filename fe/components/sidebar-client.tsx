@@ -8,13 +8,16 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { CommandDialog, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   addChannelMember,
   addFriend,
+  changeRole,
+  createChannel,
   getChannelMembers,
   getChannels,
   getFriends,
+  removeChannel,
   removeChannelMember,
   removeFriend,
   searchUsers,
@@ -29,6 +32,8 @@ import {
 } from "@/components/ui/sidebar"
 import { SearchType } from "@/components/stores/sidebar-store"
 import Link from "next/link"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export interface User {
   name: string
@@ -39,13 +44,14 @@ export interface User {
 export const AddButton = ({ type }: { type: string }) => {
   const setSearchOpen = useSidebarStore(useShallow((state) => state.setSearchOpen))
   const setSearchType = useSidebarStore(useShallow((state) => state.setSearchType))
-
+  const setDialogOpen = useSidebarStore(useShallow((state) => state.setDialogOpen))
   return (
     <Button
       className={"mx-4 bg-white text-black hover:text-white"}
       onClick={() => {
         if (type === "Channels") {
-          setSearchType(SearchType.addChannel)
+          setDialogOpen(true)
+          return
         } else if (type === "Friends") {
           setSearchType(SearchType.addFriend)
         } else if (type === "Channel Members") {
@@ -74,6 +80,12 @@ export function SetId({ channelId, recipientId }: Readonly<{ channelId?: string;
     }
   }, [channelId, recipientId, setChannelId, setRecipientId])
   return <></>
+}
+
+export enum Role {
+  OWNER = "OWNER",
+  ADMINISTRATOR = "ADMINISTRATOR",
+  MEMBER = "MEMBER",
 }
 
 export function ChannelMembers() {
@@ -116,22 +128,56 @@ export function ChannelMembers() {
     }
   }
 
+  const handleRoleChange = async (username: string, newRole: Role) => {
+    try {
+      await changeRole(channelId, username, newRole)
+      const updatedMembers = await getChannelMembers(channelId)
+      setMembers(updatedMembers)
+    } catch (error) {
+      console.error("Error changing member role:", error)
+      toast("Failed to change member role")
+    }
+  }
+
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Channel Members</SidebarGroupLabel>
-      <SidebarGroupContent className={"mb-3"}>
+      <SidebarGroupLabel className={"text-md mb-2"}>Channel Members</SidebarGroupLabel>
+      <SidebarGroupContent className={"mb-4"}>
         <SidebarMenu>
           {members.map((member) => (
-            <SidebarMenuItem key={member.userId} className={"flex"}>
-              <SidebarMenuButton>{member.username}</SidebarMenuButton>
-              {member.role !== "OWNER" && (
-                <Button
-                  className={"mx-4 bg-white text-black hover:text-white"}
-                  onClick={() => void handleRemoveMember(member.username)}
-                >
-                  Remove
-                </Button>
-              )}
+            <SidebarMenuItem key={member.userId} className={"flex flex-col"}>
+              <div className="flex items-center justify-between">
+                <SidebarMenuButton>{member.username}</SidebarMenuButton>
+              </div>
+              <div className="ml-2 flex justify-between text-gray-500">
+                {member.role !== "OWNER" ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button className="bg-white text-black hover:text-white">
+                        {member.role === Role.ADMINISTRATOR ? "ADMIN" : member.role}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => void handleRoleChange(member.username, Role.MEMBER)}>
+                        Member
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void handleRoleChange(member.username, Role.ADMINISTRATOR)}>
+                        Admin
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  member.role
+                )}
+                {member.role !== "OWNER" && (
+                  <Button
+                    className={"mx-4 bg-white text-black hover:text-white"}
+                    onClick={() => void handleRemoveMember(member.username)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
@@ -176,7 +222,7 @@ export function Friends() {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Friends</SidebarGroupLabel>
+      <SidebarGroupLabel className={"text-md mb-2"}>Friends</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {friends.map((friend) => (
@@ -239,7 +285,7 @@ export function Channels({ user }: Readonly<{ user: User }>) {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Channels</SidebarGroupLabel>
+      <SidebarGroupLabel className={"text-md mb-2"}>Channels</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {channels.map((channel) => (
@@ -247,7 +293,7 @@ export function Channels({ user }: Readonly<{ user: User }>) {
               <SidebarMenuButton asChild>
                 <Link href={`/channel/${channel.channelId}`}>{channel.name}</Link>
               </SidebarMenuButton>
-              <RemoveButton type={"Channels"} />
+              <RemoveButton type={"Channels"} channelId={channel.channelId} />
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
@@ -270,6 +316,8 @@ export function GlobalSearch() {
   const setMembers = useSidebarStore(useShallow((state) => state.setMembers))
   const searchType = useSidebarStore(useShallow((state) => state.searchType))
   const user = useSidebarStore(useShallow((state) => state.user))
+  const userId = useSidebarStore(useShallow((state) => state.userId))
+  const setFriends = useSidebarStore(useShallow((state) => state.setFriends))
 
   useEffect(() => {
     const fetchData = async () => {
@@ -306,12 +354,14 @@ export function GlobalSearch() {
         const updatedMembers = await getChannelMembers(channelId)
         setMembers(updatedMembers)
       } else if (searchType === SearchType.addFriend) {
-        const { content: users } = await searchUsers(user.name)
-        const { content: friends } = await searchUsers(username)
-        await addFriend(friends[0].userId, users[0].userId)
-        toast(`Added ${username} as a friend`)
-        const updatedFriends = await getFriends(user.name)
-        setMembers(updatedFriends)
+        const result = await searchUsers(username)
+        const userToAdd = result.content.find((user) => user.username === username)
+        if (userToAdd) {
+          await addFriend(userToAdd.userId, userId)
+          toast(`Added ${username} as a friend`)
+          const updatedFriends = await getFriends(user.name)
+          setFriends(updatedFriends)
+        }
       }
     } catch (error) {
       if (searchType === SearchType.addChannelMember) {
@@ -345,12 +395,19 @@ export function GlobalSearch() {
   )
 }
 
-export function RemoveButton({ type, friendId }: Readonly<{ type: string; friendId: string }>) {
+export function RemoveButton({
+  type,
+  friendId,
+  channelId,
+}: Readonly<{ type: string; friendId?: string; channelId?: string }>) {
   const user = useSidebarStore(useShallow((state) => state.user))
   const setFriends = useSidebarStore(useShallow((state) => state.setFriends))
+  const setChannels = useSidebarStore(useShallow((state) => state.setChannels))
   const handleClick = async () => {
     if (type === "Channels") {
-      // Remove channel
+      await removeChannel(channelId)
+      const result = await getChannels(user.name)
+      setChannels(result)
     } else if (type === "Friends") {
       const { content: users } = await searchUsers(user.name)
       await removeFriend(users[0].userId, friendId)
@@ -368,5 +425,58 @@ export function RemoveButton({ type, friendId }: Readonly<{ type: string; friend
     <Button className={"mx-4 bg-white text-black hover:text-white"} onClick={() => void handleClick()}>
       Remove
     </Button>
+  )
+}
+
+export function DialogCreate() {
+  const { dialogOpen, setDialogOpen } = useSidebarStore(
+    useShallow((state) => ({
+      dialogOpen: state.dialogOpen,
+      setDialogOpen: state.setDialogOpen,
+    }))
+  )
+  const [channelName, setChannelName] = useState("")
+  const userId = useSidebarStore(useShallow((state) => state.userId))
+  const user = useSidebarStore(useShallow((state) => state.user))
+  const { channels, setChannels } = useSidebarStore(
+    useShallow((state) => ({ channels: state.channels, setChannels: state.setChannels }))
+  )
+
+  const handleCreateChannel = async () => {
+    if (!channelName.trim()) {
+      return
+    }
+
+    try {
+      await createChannel(channelName, userId)
+      const updatedChannels = await getChannels(user.name)
+      setChannels(updatedChannels)
+      toast(`Channel "${channelName}" created successfully`)
+      setDialogOpen(false)
+      setChannelName("")
+    } catch (error) {
+      console.error("Error creating channel:", error)
+      toast("Failed to create channel. Please try again.")
+    }
+  }
+
+  return (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent className={"text-black"}>
+        <DialogHeader>
+          <DialogTitle>Create a new channel</DialogTitle>
+        </DialogHeader>
+        <Input
+          value={channelName}
+          onChange={(e) => {
+            setChannelName(e.target.value)
+          }}
+          placeholder="Enter channel name"
+        />
+        <DialogFooter>
+          <Button onClick={() => void handleCreateChannel()}>Create</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

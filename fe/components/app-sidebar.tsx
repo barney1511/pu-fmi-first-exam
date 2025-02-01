@@ -14,7 +14,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
   return (
     <Sidebar {...props}>
-      <SidebarHeader className={"ml-1.5"}>Menu</SidebarHeader>
+      <SidebarHeader className={"mt-2 ml-1.5"}>Menu</SidebarHeader>
       <SidebarContent>
         <Channels user={user} />
         <AddButton type={"Channels"} user={user} />
