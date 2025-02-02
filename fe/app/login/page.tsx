@@ -25,13 +25,9 @@ export default function SignInPage({ searchParams }: Readonly<SignInPageProps>) 
                 <form
                   key={provider.id}
                   action={async () => {
-                    "use server"
-                    await signIn(provider.id, {
-                      callbackUrl: searchParams.callbackUrl ?? "",
-                      redirectTo: "/",
-                      redirect: true,
-                    })
-                  }}
+                          "use server"
+                          await signIn("github")
+                        }}
                 >
                   <Button variant="outline" type="submit" className="w-full">
                     Sign in with {provider.name}
